@@ -36,6 +36,10 @@
   #reader { width: 100%; border-radius: 14px; overflow: hidden; background: #0f172a; min-height: 260px; }
   #reader video { object-fit: cover; }
   .hint { text-align: center; font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+  #soundBtn { display: block; margin: 10px auto 0; padding: 9px 18px; border: 1.5px solid var(--line);
+    border-radius: 999px; background: #fff; font: inherit; font-size: 13px; font-weight: 600;
+    color: var(--text); cursor: pointer; }
+  #soundBtn.on { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
 
   #result { text-align: center; padding: 22px 14px; border-radius: 18px; background: var(--card);
     box-shadow: 0 6px 20px rgba(15,23,42,.08); border: 2px solid transparent; transition: all .2s; }
@@ -96,6 +100,7 @@
   <section class="card">
     <div id="reader"></div>
     <p class="hint">ដាក់ QR Code ក្នុងប្រអប់ ចម្ងាយប្រហែល ១៥-៣០ សង់ទីម៉ែត្រ</p>
+    <button id="soundBtn" class="on">🔊 សំឡេង៖ បើក</button>
   </section>
 
   <section id="result" class="idle">
@@ -128,7 +133,7 @@
   // ★ ដាក់ URL ពី Apps Script (បញ្ចប់ដោយ /exec) នៅទីនេះ
   const API_URL = 'https://script.google.com/macros/s/AKfycbxVoj5tdpytPdHygjKK0GP9Q-CRj4ZYl6WgnEVVbkppmvmpI9aFaC57iSrnftMgf8ULtQ/exec';
   // ★ ដាក់ឈ្មោះសាលារបស់អ្នក
-  const SCHOOL_NAME = 'ឈ្មោះសាលា';
+  const SCHOOL_NAME = 'សាលារៀនទួនហ្វា 端华学校';
 
   document.getElementById('school').textContent = SCHOOL_NAME;
   const $ = id => document.getElementById(id);
@@ -144,16 +149,41 @@
   tick(); setInterval(tick, 1000);
 
   // សំឡេង
-  let audio;
-  function beep(freq, ms) {
+  let audio, soundOn = true;
+  function unlockAudio() {
     try {
       audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === 'suspended') audio.resume();
+    } catch (e) {}
+  }
+  function beep(freq, ms) {
+    if (!soundOn) return;
+    try {
+      unlockAudio();
       const o = audio.createOscillator(), g = audio.createGain();
-      o.frequency.value = freq; g.gain.value = 0.15;
+      o.frequency.value = freq; g.gain.value = 0.35;
       o.connect(g); g.connect(audio.destination);
       o.start(); o.stop(audio.currentTime + ms / 1000);
     } catch (e) {}
   }
+  function speak(text) {
+    if (!soundOn || !('speechSynthesis' in window)) return;
+    try {
+      const hasKm = speechSynthesis.getVoices().some(v => v.lang && v.lang.toLowerCase().startsWith('km'));
+      if (!hasKm) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'km-KH'; u.rate = 1;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  $('soundBtn').onclick = () => {
+    soundOn = !soundOn;
+    $('soundBtn').textContent = soundOn ? '🔊 សំឡេង៖ បើក' : '🔇 សំឡេង៖ បិទ';
+    $('soundBtn').classList.toggle('on', soundOn);
+    if (soundOn) { unlockAudio(); beep(880, 120); }
+  };
+  document.addEventListener('touchstart', unlockAudio, { passive: true });
+  document.addEventListener('click', unlockAudio);
 
   function show(kind, icon, name, meta, badge, msg) {
     const r = $('result');
@@ -204,10 +234,12 @@
         show('err', '❌', 'មិនអាចកត់បាន', '', '', d.message);
       } else if (d.duplicate) {
         beep(520, 120);
+        speak('បានកត់រួចហើយ');
         show('dup', 'ℹ️', d.name, 'ថ្នាក់ ' + d.cls + ' · ម៉ោង ' + d.time, 'បានកត់រួចហើយ', 'វត្តមានថ្ងៃនេះត្រូវបានកត់ពីមុន');
       } else {
         const late = d.status === 'យឺត';
         beep(late ? 660 : 880, 160);
+        speak(late ? 'យឺត' : 'ជោគជ័យ');
         show(late ? 'late' : 'ok', late ? '⚠️' : '✅', d.name, 'ថ្នាក់ ' + d.cls + ' · ម៉ោង ' + d.time, d.status, 'កត់វត្តមានជោគជ័យ');
         stats.total++; late ? stats.late++ : stats.ok++;
         updateStats(); addRecent(d);
