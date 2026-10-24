@@ -3,74 +3,231 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ស្កេនវត្តមាន</title>
+<meta name="theme-color" content="#1e40af">
+<title>ប្រព័ន្ធស្កេនវត្តមាន</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  body { font-family: system-ui, "Khmer OS", sans-serif; margin: 0; padding: 16px; background: #f3f4f6; color: #111; }
-  .wrap { max-width: 480px; margin: 0 auto; }
-  h1 { font-size: 20px; text-align: center; }
-  #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
-  #result { margin-top: 14px; padding: 16px; border-radius: 12px; background: #fff; text-align: center; min-height: 80px; }
-  .ok { background: #dcfce7 !important; }
-  .late { background: #fef9c3 !important; }
-  .dup { background: #e0f2fe !important; }
-  .err { background: #fee2e2 !important; }
-  .name { font-size: 22px; font-weight: bold; }
+  :root {
+    --primary: #1e40af; --primary-2: #3b82f6; --bg: #f1f5f9; --card: #fff;
+    --text: #0f172a; --muted: #64748b; --line: #e2e8f0;
+    --ok: #16a34a; --ok-bg: #dcfce7; --late: #d97706; --late-bg: #fef3c7;
+    --dup: #0284c7; --dup-bg: #e0f2fe; --err: #dc2626; --err-bg: #fee2e2;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Noto Sans Khmer", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: #fff;
+    padding: 18px 16px 56px; }
+  .bar { max-width: 520px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo { width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,.18);
+    display: grid; place-items: center; font-size: 22px; }
+  .brand h1 { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.3; }
+  .brand p { margin: 0; font-size: 12px; opacity: .85; }
+  .clock { text-align: right; }
+  .clock .t { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .clock .d { font-size: 12px; opacity: .85; }
+  main { max-width: 520px; margin: -40px auto 24px; padding: 0 14px; display: grid; gap: 14px; }
+  .card { background: var(--card); border-radius: 18px; padding: 14px;
+    box-shadow: 0 6px 20px rgba(15,23,42,.08); }
+  .card h2 { margin: 0 0 10px; font-size: 14px; color: var(--muted); font-weight: 600; }
+  #reader { width: 100%; border-radius: 14px; overflow: hidden; background: #0f172a; min-height: 260px; }
+  #reader video { object-fit: cover; }
+  .hint { text-align: center; font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+
+  #result { text-align: center; padding: 22px 14px; border-radius: 18px; background: var(--card);
+    box-shadow: 0 6px 20px rgba(15,23,42,.08); border: 2px solid transparent; transition: all .2s; }
+  #result .icon { font-size: 40px; line-height: 1; }
+  #result .name { font-size: 24px; font-weight: 700; margin: 8px 0 2px; word-break: break-word; }
+  #result .meta { font-size: 15px; color: var(--muted); }
+  #result .badge { display: inline-block; margin-top: 10px; padding: 6px 16px; border-radius: 999px;
+    font-weight: 700; font-size: 14px; color: #fff; }
+  #result .msg { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  #result.idle .icon { opacity: .5; }
+  #result.idle .name { font-size: 16px; font-weight: 600; color: var(--muted); }
+  #result.ok   { background: var(--ok-bg);   border-color: var(--ok); }
+  #result.late { background: var(--late-bg); border-color: var(--late); }
+  #result.dup  { background: var(--dup-bg);  border-color: var(--dup); }
+  #result.err  { background: var(--err-bg);  border-color: var(--err); }
+  .ok .badge { background: var(--ok); } .late .badge { background: var(--late); }
+  .dup .badge { background: var(--dup); } .err .badge { background: var(--err); }
+  #result.pop { animation: pop .25s ease; }
+  @keyframes pop { from { transform: scale(.96); } to { transform: scale(1); } }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat { background: var(--card); border-radius: 14px; padding: 12px 8px; text-align: center;
+    box-shadow: 0 6px 20px rgba(15,23,42,.06); }
+  .stat b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .stat.s-ok b { color: var(--ok); } .stat.s-late b { color: var(--late); }
+
+  .manual { display: flex; gap: 8px; }
+  .manual input { flex: 1; min-width: 0; padding: 12px 14px; border: 1.5px solid var(--line);
+    border-radius: 12px; font: inherit; font-size: 15px; outline: none; }
+  .manual input:focus { border-color: var(--primary-2); }
+  .manual button { padding: 0 20px; border: 0; border-radius: 12px; background: var(--primary);
+    color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  .manual button:active { opacity: .85; }
+
+  ul.recent { list-style: none; margin: 0; padding: 0; }
+  ul.recent li { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 10px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  ul.recent li:first-child { border-top: 0; }
+  .r-name { font-weight: 600; } .r-cls { color: var(--muted); font-size: 12px; }
+  .tag { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .tag.ok { background: var(--ok-bg); color: var(--ok); } .tag.late { background: var(--late-bg); color: var(--late); }
+  .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 6px 0; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>ស្កេន QR កត់វត្តមាន</h1>
-  <div id="reader"></div>
-  <div id="result">ចង្អុលកាមេរ៉ាទៅ QR Code</div>
-</div>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <div class="logo">🏫</div>
+      <div><h1 id="school">ឈ្មោះសាលា</h1><p>ប្រព័ន្ធស្កេនវត្តមាន</p></div>
+    </div>
+    <div class="clock"><div class="t" id="time">--:--:--</div><div class="d" id="date"></div></div>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <div id="reader"></div>
+    <p class="hint">ដាក់ QR Code ក្នុងប្រអប់ ចម្ងាយប្រហែល ១៥-៣០ សង់ទីម៉ែត្រ</p>
+  </section>
+
+  <section id="result" class="idle">
+    <div class="icon">📷</div>
+    <div class="name">រង់ចាំស្កេន QR Code</div>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><b id="nTotal">0</b><span>បានស្កេន</span></div>
+    <div class="stat s-ok"><b id="nOk">0</b><span>មកទាន់</span></div>
+    <div class="stat s-late"><b id="nLate">0</b><span>យឺត</span></div>
+  </section>
+
+  <section class="card">
+    <h2>បញ្ចូល ID ដោយដៃ</h2>
+    <div class="manual">
+      <input id="manualId" placeholder="ឧ. B-021800" autocomplete="off">
+      <button id="manualBtn">កត់</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>ស្កេនចុងក្រោយ</h2>
+    <ul class="recent" id="recent"><li class="empty">មិនទាន់មានការស្កេន</li></ul>
+  </section>
+</main>
 
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
-  // ★ ដាក់ URL ដែលបានពី Apps Script (Deploy → Web app) នៅទីនេះ
-  const API_URL = 'https://script.google.com/macros/s/AKfycbxVoj5tdpytPdHygjKK0GP9Q-CRj4ZYl6WgnEVVbkppmvmpI9aFaC57iSrnftMgf8ULtQ/exec';
+  // ★ ដាក់ URL ពី Apps Script (បញ្ចប់ដោយ /exec) នៅទីនេះ
+  const API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+  // ★ ដាក់ឈ្មោះសាលារបស់អ្នក
+  const SCHOOL_NAME = 'ឈ្មោះសាលា';
 
-  const result = document.getElementById('result');
-  let busy = false;
-  let lastCode = '', lastTime = 0;
+  document.getElementById('school').textContent = SCHOOL_NAME;
+  const $ = id => document.getElementById(id);
+  const stats = { total: 0, ok: 0, late: 0 };
+  let busy = false, lastCode = '', lastTime = 0;
 
-  function show(cls, html) {
-    result.className = cls;
-    result.innerHTML = html;
+  // នាឡិកា
+  function tick() {
+    const n = new Date(), p = v => String(v).padStart(2, '0');
+    $('time').textContent = p(n.getHours()) + ':' + p(n.getMinutes()) + ':' + p(n.getSeconds());
+    $('date').textContent = p(n.getDate()) + '/' + p(n.getMonth() + 1) + '/' + n.getFullYear();
+  }
+  tick(); setInterval(tick, 1000);
+
+  // សំឡេង
+  let audio;
+  function beep(freq, ms) {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = freq; g.gain.value = 0.15;
+      o.connect(g); g.connect(audio.destination);
+      o.start(); o.stop(audio.currentTime + ms / 1000);
+    } catch (e) {}
   }
 
-  async function onScan(text) {
-    const code = text.trim();
+  function show(kind, icon, name, meta, badge, msg) {
+    const r = $('result');
+    r.className = kind + ' pop';
+    r.innerHTML = '';
+    const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; r.appendChild(d); return d; };
+    add('icon', icon);
+    add('name', name);
+    if (meta) add('meta', meta);
+    if (badge) add('badge', badge);
+    if (msg) add('msg', msg);
+    setTimeout(() => r.classList.remove('pop'), 300);
+  }
+
+  function addRecent(d) {
+    const ul = $('recent');
+    if (ul.querySelector('.empty')) ul.innerHTML = '';
+    const li = document.createElement('li');
+    const left = document.createElement('div');
+    const n = document.createElement('div'); n.className = 'r-name'; n.textContent = d.name;
+    const c = document.createElement('div'); c.className = 'r-cls'; c.textContent = d.cls + ' · ' + d.time;
+    left.append(n, c);
+    const tag = document.createElement('span');
+    tag.className = 'tag ' + (d.status === 'យឺត' ? 'late' : 'ok'); tag.textContent = d.status;
+    li.append(left, tag);
+    ul.prepend(li);
+    while (ul.children.length > 5) ul.lastChild.remove();
+  }
+
+  function updateStats() {
+    $('nTotal').textContent = stats.total; $('nOk').textContent = stats.ok; $('nLate').textContent = stats.late;
+  }
+
+  async function checkIn(raw) {
+    const code = String(raw).trim();
+    if (!code) return;
     const now = Date.now();
     if (busy || (code === lastCode && now - lastTime < 4000)) return;
     busy = true; lastCode = code; lastTime = now;
-    show('', 'កំពុងកត់...');
+    if (navigator.vibrate) navigator.vibrate(60);
+    show('idle', '⏳', 'កំពុងកត់វត្តមាន...', '');
 
     try {
       const res = await fetch(API_URL + '?id=' + encodeURIComponent(code));
       const d = await res.json();
       if (!d.ok) {
-        show('err', '❌ ' + d.message);
+        beep(220, 350);
+        show('err', '❌', 'មិនអាចកត់បាន', '', '', d.message);
+      } else if (d.duplicate) {
+        beep(520, 120);
+        show('dup', 'ℹ️', d.name, 'ថ្នាក់ ' + d.cls + ' · ម៉ោង ' + d.time, 'បានកត់រួចហើយ', 'វត្តមានថ្ងៃនេះត្រូវបានកត់ពីមុន');
       } else {
-        const cls = d.duplicate ? 'dup' : (d.status === 'យឺត' ? 'late' : 'ok');
-        const icon = d.duplicate ? 'ℹ️' : (d.status === 'យឺត' ? '⚠️' : '✅');
-        show(cls,
-          '<div class="name">' + icon + ' ' + d.name + '</div>' +
-          '<div>ថ្នាក់៖ ' + d.cls + '</div>' +
-          '<div>ម៉ោង៖ ' + d.time + ' · ' + d.status + '</div>' +
-          '<div>' + d.message + '</div>');
+        const late = d.status === 'យឺត';
+        beep(late ? 660 : 880, 160);
+        show(late ? 'late' : 'ok', late ? '⚠️' : '✅', d.name, 'ថ្នាក់ ' + d.cls + ' · ម៉ោង ' + d.time, d.status, 'កត់វត្តមានជោគជ័យ');
+        stats.total++; late ? stats.late++ : stats.ok++;
+        updateStats(); addRecent(d);
       }
     } catch (e) {
-      show('err', '❌ ភ្ជាប់មិនបាន សូមពិនិត្យអ៊ីនធឺណិត ឬ URL');
+      beep(220, 350);
+      show('err', '📡', 'ភ្ជាប់មិនបាន', '', '', 'សូមពិនិត្យអ៊ីនធឺណិត ឬ URL ក្នុងកូដ');
     }
-    setTimeout(() => { busy = false; }, 1500);
+    setTimeout(() => { busy = false; }, 600);
   }
+
+  $('manualBtn').onclick = () => { checkIn($('manualId').value); $('manualId').value = ''; };
+  $('manualId').addEventListener('keydown', e => { if (e.key === 'Enter') $('manualBtn').click(); });
 
   const scanner = new Html5Qrcode('reader');
   scanner.start(
     { facingMode: 'environment' },
-    { fps: 10, qrbox: 240 },
-    onScan
-  ).catch(() => show('err', '❌ បើកកាមេរ៉ាមិនបាន សូមអនុញ្ញាតកាមេរ៉ា'));
+    { fps: 15, qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * 0.7); return { width: s, height: s }; } },
+    checkIn
+  ).catch(() => show('err', '🚫', 'បើកកាមេរ៉ាមិនបាន', '', '', 'សូមអនុញ្ញាតកាមេរ៉ាក្នុង browser'));
 </script>
 </body>
 </html>
