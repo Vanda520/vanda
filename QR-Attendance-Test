@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ស្កេនវត្តមាន</title>
+<style>
+  body { font-family: system-ui, "Khmer OS", sans-serif; margin: 0; padding: 16px; background: #f3f4f6; color: #111; }
+  .wrap { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 20px; text-align: center; }
+  #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
+  #result { margin-top: 14px; padding: 16px; border-radius: 12px; background: #fff; text-align: center; min-height: 80px; }
+  .ok { background: #dcfce7 !important; }
+  .late { background: #fef9c3 !important; }
+  .dup { background: #e0f2fe !important; }
+  .err { background: #fee2e2 !important; }
+  .name { font-size: 22px; font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ស្កេន QR កត់វត្តមាន</h1>
+  <div id="reader"></div>
+  <div id="result">ចង្អុលកាមេរ៉ាទៅ QR Code</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+  // ★ ដាក់ URL ដែលបានពី Apps Script (Deploy → Web app) នៅទីនេះ
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxVoj5tdpytPdHygjKK0GP9Q-CRj4ZYl6WgnEVVbkppmvmpI9aFaC57iSrnftMgf8ULtQ/exec';
+
+  const result = document.getElementById('result');
+  let busy = false;
+  let lastCode = '', lastTime = 0;
+
+  function show(cls, html) {
+    result.className = cls;
+    result.innerHTML = html;
+  }
+
+  async function onScan(text) {
+    const code = text.trim();
+    const now = Date.now();
+    if (busy || (code === lastCode && now - lastTime < 4000)) return;
+    busy = true; lastCode = code; lastTime = now;
+    show('', 'កំពុងកត់...');
+
+    try {
+      const res = await fetch(API_URL + '?id=' + encodeURIComponent(code));
+      const d = await res.json();
+      if (!d.ok) {
+        show('err', '❌ ' + d.message);
+      } else {
+        const cls = d.duplicate ? 'dup' : (d.status === 'យឺត' ? 'late' : 'ok');
+        const icon = d.duplicate ? 'ℹ️' : (d.status === 'យឺត' ? '⚠️' : '✅');
+        show(cls,
+          '<div class="name">' + icon + ' ' + d.name + '</div>' +
+          '<div>ថ្នាក់៖ ' + d.cls + '</div>' +
+          '<div>ម៉ោង៖ ' + d.time + ' · ' + d.status + '</div>' +
+          '<div>' + d.message + '</div>');
+      }
+    } catch (e) {
+      show('err', '❌ ភ្ជាប់មិនបាន សូមពិនិត្យអ៊ីនធឺណិត ឬ URL');
+    }
+    setTimeout(() => { busy = false; }, 1500);
+  }
+
+  const scanner = new Html5Qrcode('reader');
+  scanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: 240 },
+    onScan
+  ).catch(() => show('err', '❌ បើកកាមេរ៉ាមិនបាន សូមអនុញ្ញាតកាមេរ៉ា'));
+</script>
+</body>
+</html>
